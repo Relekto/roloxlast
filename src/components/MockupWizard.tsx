@@ -251,7 +251,7 @@ export default function MockupWizard() {
           {/* Logo */}
           <div className="flex items-center space-x-3">
             <img 
-              src="/src/components/hijyenlab-logo70.png" 
+              src="/hijyenlab-logo70.png" 
               alt="HIJYEN LAB" 
               className="w-10 h-10 object-contain"
             />

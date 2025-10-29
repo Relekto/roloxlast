@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { ChevronRight, Sparkles, Zap, Heart, Star, Sun, Moon, Download, Mail, MessageCircle, RotateCw } from "lucide-react";
+import logoImg from "/hijyenlab-logo70.png";
 
 // Typewriter hook
 function useTypewriter(text: string, speed: number = 100) {
@@ -251,7 +252,7 @@ export default function MockupWizard() {
           {/* Logo */}
           <div className="flex items-center space-x-3">
             <img 
-              src="/hijyenlab-logo70.png" 
+              src={logoImg} 
               alt="HIJYEN LAB" 
               className="w-10 h-10 object-contain"
             />

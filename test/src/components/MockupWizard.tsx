@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronRight, Sparkles, Zap, Heart, Star, Sun, Moon } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+import { ChevronRight, Sparkles, Zap, Heart, Star, Sun, Moon, Download, Mail, MessageCircle, RotateCw } from "lucide-react";
 
 // Typewriter hook
 function useTypewriter(text: string, speed: number = 100) {
@@ -75,10 +77,20 @@ export default function MockupWizard() {
   const [isDark, setIsDark] = useState(false); // Light tema ile başla
   
   // Wizard state'leri
-  const [currentPhase, setCurrentPhase] = useState<"welcome" | "questions" | "logo" | "result">("welcome");
+  const [currentPhase, setCurrentPhase] = useState<"welcome" | "questions" | "logo" | "email" | "preparing" | "result">("welcome");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [email, setEmail] = useState("");
+  const [progress, setProgress] = useState(0);
+  
+  // Mockup state'leri
+  const [logoDataUrl, setLogoDataUrl] = useState<string>("");
+  const [logoPosition, setLogoPosition] = useState({ x: 50, y: 50 }); // Yüzde olarak
+  const [logoSize, setLogoSize] = useState(20); // Yüzde olarak
+  const [logoRotation, setLogoRotation] = useState(0); // Derece
+  const [mockupColor, setMockupColor] = useState("#3A83C1"); // RGB hex
+  const mockupRef = useRef<HTMLDivElement>(null);
 
   const toggleTheme = () => {
     setIsDark(!isDark);
@@ -108,7 +120,119 @@ export default function MockupWizard() {
     const file = event.target.files?.[0];
     if (file) {
       setLogoFile(file);
+      
+      // Logo'yu base64'e çevir
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          setLogoDataUrl(e.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
     }
+  };
+
+  const goToEmail = () => {
+    setCurrentPhase("email");
+  };
+
+  const isValidEmail = (email: string) => {
+    return email.includes("@") && email.length > 3;
+  };
+
+  const handleEmailSubmit = () => {
+    if (isValidEmail(email)) {
+      setCurrentPhase("preparing");
+      setProgress(0);
+      
+      // 10 saniyelik progress bar animasyonu
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(progressInterval);
+            setCurrentPhase("result");
+            return 100;
+          }
+          return prev + 1;
+        });
+      }, 100); // Her 100ms'de %1 artır (10 saniye toplam)
+    }
+  };
+
+  // Mockup utility fonksiyonları
+  const handleLogoMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startPos = { ...logoPosition };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = ((e.clientX - startX) / 400) * 100; // 400px mockup genişliği varsayımı
+      const deltaY = ((e.clientY - startY) / 300) * 100; // 300px mockup yüksekliği varsayımı
+      
+      setLogoPosition({
+        x: Math.max(0, Math.min(100, startPos.x + deltaX)),
+        y: Math.max(0, Math.min(100, startPos.y + deltaY))
+      });
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const downloadMockup = async () => {
+    // PNG indirme fonksiyonu (basit implementasyon)
+    if (mockupRef.current) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        canvas.width = 800;
+        canvas.height = 600;
+        
+        // Mockup arka planı
+        ctx.fillStyle = mockupColor;
+        ctx.fillRect(0, 0, 800, 600);
+        
+        // Logo ekleme (basit implementasyon)
+        if (logoDataUrl) {
+          const img = new Image();
+          img.onload = () => {
+            const logoX = (logoPosition.x / 100) * 800;
+            const logoY = (logoPosition.y / 100) * 600;
+            const logoW = (logoSize / 100) * 200;
+            const logoH = (logoSize / 100) * 200;
+            
+            ctx.save();
+            ctx.translate(logoX + logoW/2, logoY + logoH/2);
+            ctx.rotate((logoRotation * Math.PI) / 180);
+            ctx.drawImage(img, -logoW/2, -logoH/2, logoW, logoH);
+            ctx.restore();
+            
+            // İndir
+            const link = document.createElement('a');
+            link.download = 'mockup.png';
+            link.href = canvas.toDataURL();
+            link.click();
+          };
+          img.src = logoDataUrl;
+        }
+      }
+    }
+  };
+
+  const sendEmail = () => {
+    // Email gönderme fonksiyonu (basit implementasyon)
+    alert(`Mockup ${email} adresine gönderildi!`);
+  };
+
+  const contactUs = () => {
+    // İletişim fonksiyonu
+    window.open('https://wa.me/905555555555?text=Özel tasarım için iletişime geçmek istiyorum', '_blank');
   };
 
   const finishWizard = () => {
@@ -427,16 +551,299 @@ export default function MockupWizard() {
 
                 {logoFile && (
                   <Button
-                    onClick={finishWizard}
+                    onClick={goToEmail}
                     className={`w-full py-4 text-lg font-semibold rounded-xl transition-all duration-300 ${
                       isDark
                         ? 'bg-[#F87B1B] hover:bg-[#CBD99B] text-[#11224E]'
                         : 'bg-[#11224E] hover:bg-[#F87B1B] text-[#EEEEEE]'
                     }`}
                   >
-                    Tamamla <ChevronRight className="w-5 h-5 ml-2" />
+                    Devam Et <ChevronRight className="w-5 h-5 ml-2" />
                   </Button>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* EMAIL EKRANI */}
+          {currentPhase === "email" && (
+            <div className="max-w-2xl mx-auto animate-fade-in">
+              <div className={`bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-xl border ${
+                isDark ? 'border-[#F87B1B]' : 'border-[#CBD99B]'
+              }`}>
+                <h2 className={`text-3xl font-bold mb-6 text-center ${
+                  isDark ? 'text-[#11224E]' : 'text-[#11224E]'
+                }`}>
+                  📧 Email Adresiniz
+                </h2>
+                <p className={`text-lg mb-8 text-center ${
+                  isDark ? 'text-[#11224E]' : 'text-[#11224E]'
+                }`}>
+                  Lütfen email adresinizi girin
+                </p>
+
+                <div className="space-y-4">
+                  <input
+                    type="email"
+                    placeholder="ornek@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={`w-full p-4 text-lg rounded-xl border-2 focus:outline-none focus:ring-2 transition-all ${
+                      isDark 
+                        ? 'bg-[#EEEEEE] border-[#CBD99B] focus:border-[#F87B1B] focus:ring-[#F87B1B]/20' 
+                        : 'bg-white border-[#CBD99B] focus:border-[#11224E] focus:ring-[#11224E]/20'
+                    }`}
+                  />
+                  
+                  {!isValidEmail(email) && email.length > 0 && (
+                    <p className="text-red-500 text-sm">
+                      Geçerli bir email adresi girin (@ işareti içermelidir)
+                    </p>
+                  )}
+
+                  {isValidEmail(email) && (
+                    <Button
+                      onClick={handleEmailSubmit}
+                      className={`w-full py-4 text-lg font-semibold rounded-xl transition-all duration-300 ${
+                        isDark
+                          ? 'bg-[#F87B1B] hover:bg-[#CBD99B] text-[#11224E]'
+                          : 'bg-[#11224E] hover:bg-[#F87B1B] text-[#EEEEEE]'
+                      }`}
+                    >
+                      Tasarımı Oluştur <ChevronRight className="w-5 h-5 ml-2" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* HAZIRLANMA EKRANI */}
+          {currentPhase === "preparing" && (
+            <div className="max-w-2xl mx-auto animate-fade-in">
+              <div className={`bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-xl border ${
+                isDark ? 'border-[#F87B1B]' : 'border-[#CBD99B]'
+              }`}>
+                <div className="text-center space-y-6">
+                  {/* Loading Spinner */}
+                  <div className="relative">
+                    <div className={`w-20 h-20 mx-auto rounded-full border-4 border-t-transparent animate-spin ${
+                      isDark ? 'border-[#F87B1B]' : 'border-[#11224E]'
+                    }`}></div>
+                  </div>
+
+                  <h2 className={`text-3xl font-bold ${
+                    isDark ? 'text-[#11224E]' : 'text-[#11224E]'
+                  }`}>
+                    🎨 Tasarımınız Hazırlanıyor...
+                  </h2>
+                  
+                  <p className={`text-lg ${
+                    isDark ? 'text-[#11224E]' : 'text-[#11224E]'
+                  }`}>
+                    AI teknolojisi ile size özel mockup oluşturuluyor
+                  </p>
+
+                  {/* Progress Bar */}
+                  <div className="space-y-3">
+                    <div className={`w-full h-3 rounded-full overflow-hidden ${
+                      isDark ? 'bg-[#11224E]' : 'bg-gray-200'
+                    }`}>
+                      <div 
+                        className={`h-3 rounded-full transition-all duration-300 ease-out ${
+                          isDark ? 'bg-[#F87B1B]' : 'bg-[#11224E]'
+                        }`}
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
+                    <p className={`text-lg font-semibold ${
+                      isDark ? 'text-[#F87B1B]' : 'text-[#11224E]'
+                    }`}>
+                      %{progress} tamamlandı
+                    </p>
+                  </div>
+
+                  {/* Loading Messages */}
+                  <div className={`text-sm space-y-2 ${
+                    isDark ? 'text-[#11224E]/70' : 'text-[#11224E]/70'
+                  }`}>
+                    <p>🎯 Cevaplarınız analiz ediliyor...</p>
+                    <p>🎨 Renk paleti oluşturuluyor...</p>
+                    <p>📐 Mockup şablonu hazırlanıyor...</p>
+                    <p>✨ Son rötuşlar yapılıyor...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* RESULT EKRANI - MOCKUP EDİTÖRÜ */}
+          {currentPhase === "result" && (
+            <div className="max-w-6xl mx-auto animate-fade-in">
+              <div className="grid lg:grid-cols-3 gap-8">
+                
+                {/* Mockup Önizleme */}
+                <div className="lg:col-span-2">
+                  <div className={`bg-white/80 backdrop-blur-sm rounded-3xl p-6 shadow-xl border ${
+                    isDark ? 'border-[#F87B1B]' : 'border-[#CBD99B]'
+                  }`}>
+                    <h2 className={`text-2xl font-bold mb-4 text-center ${
+                      isDark ? 'text-[#11224E]' : 'text-[#11224E]'
+                    }`}>
+                      🎉 Tasarımınız Hazır!
+                    </h2>
+                    
+                    {/* Mockup Container */}
+                    <div 
+                      ref={mockupRef}
+                      className="relative w-full h-80 rounded-2xl overflow-hidden cursor-move"
+                      style={{ backgroundColor: mockupColor }}
+                    >
+                      {/* Logo */}
+                      {logoDataUrl && (
+                        <div
+                          className="absolute cursor-move select-none"
+                          style={{
+                            left: `${logoPosition.x}%`,
+                            top: `${logoPosition.y}%`,
+                            width: `${logoSize}%`,
+                            height: `${logoSize}%`,
+                            transform: `translate(-50%, -50%) rotate(${logoRotation}deg)`,
+                            transformOrigin: 'center'
+                          }}
+                          onMouseDown={handleLogoMouseDown}
+                        >
+                          <img 
+                            src={logoDataUrl} 
+                            alt="Logo" 
+                            className="w-full h-full object-contain pointer-events-none"
+                            draggable={false}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Kontrol Paneli */}
+                <div className="space-y-6">
+                  
+                  {/* Renk Kontrolü */}
+                  <div className={`bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-lg border ${
+                    isDark ? 'border-[#F87B1B]' : 'border-[#CBD99B]'
+                  }`}>
+                    <Label className={`text-lg font-semibold mb-3 block ${
+                      isDark ? 'text-[#11224E]' : 'text-[#11224E]'
+                    }`}>
+                      🎨 Mockup Rengi
+                    </Label>
+                    <input
+                      type="color"
+                      value={mockupColor}
+                      onChange={(e) => setMockupColor(e.target.value)}
+                      className="w-full h-12 rounded-xl border-2 cursor-pointer"
+                    />
+                    <p className={`text-sm mt-2 ${
+                      isDark ? 'text-[#11224E]/70' : 'text-[#11224E]/70'
+                    }`}>
+                      RGB: {mockupColor}
+                    </p>
+                  </div>
+
+                  {/* Logo Boyut Kontrolü */}
+                  <div className={`bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-lg border ${
+                    isDark ? 'border-[#F87B1B]' : 'border-[#CBD99B]'
+                  }`}>
+                    <Label className={`text-lg font-semibold mb-3 block ${
+                      isDark ? 'text-[#11224E]' : 'text-[#11224E]'
+                    }`}>
+                      📏 Logo Boyutu: {logoSize}%
+                    </Label>
+                    <Slider
+                      value={[logoSize]}
+                      onValueChange={(value) => setLogoSize(value[0])}
+                      max={50}
+                      min={5}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+
+                  {/* Logo Döndürme */}
+                  <div className={`bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-lg border ${
+                    isDark ? 'border-[#F87B1B]' : 'border-[#CBD99B]'
+                  }`}>
+                    <Label className={`text-lg font-semibold mb-3 block ${
+                      isDark ? 'text-[#11224E]' : 'text-[#11224E]'
+                    }`}>
+                      <RotateCw className="inline w-4 h-4 mr-2" />
+                      Döndür: {logoRotation}°
+                    </Label>
+                    <Slider
+                      value={[logoRotation]}
+                      onValueChange={(value) => setLogoRotation(value[0])}
+                      max={180}
+                      min={-180}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+
+                  {/* Aksiyon Butonları */}
+                  <div className="space-y-3">
+                    <Button
+                      onClick={downloadMockup}
+                      className={`w-full py-3 text-lg font-semibold rounded-xl transition-all duration-300 ${
+                        isDark
+                          ? 'bg-[#F87B1B] hover:bg-[#CBD99B] text-[#11224E]'
+                          : 'bg-[#11224E] hover:bg-[#F87B1B] text-[#EEEEEE]'
+                      }`}
+                    >
+                      <Download className="w-5 h-5 mr-2" />
+                      PNG İndir
+                    </Button>
+
+                    <Button
+                      onClick={sendEmail}
+                      variant="outline"
+                      className={`w-full py-3 text-lg font-semibold rounded-xl transition-all duration-300 ${
+                        isDark
+                          ? 'bg-[#EEEEEE] border-[#F87B1B] text-[#11224E] hover:bg-[#F87B1B] hover:text-[#EEEEEE]'
+                          : 'bg-white border-[#11224E] text-[#11224E] hover:bg-[#11224E] hover:text-[#EEEEEE]'
+                      }`}
+                    >
+                      <Mail className="w-5 h-5 mr-2" />
+                      Email Gönder
+                    </Button>
+
+                    <Button
+                      onClick={contactUs}
+                      variant="outline"
+                      className={`w-full py-3 text-lg font-semibold rounded-xl transition-all duration-300 ${
+                        isDark
+                          ? 'bg-[#CBD99B] border-[#F87B1B] text-[#11224E] hover:bg-[#F87B1B] hover:text-[#EEEEEE]'
+                          : 'bg-[#CBD99B] border-[#11224E] text-[#11224E] hover:bg-[#11224E] hover:text-[#EEEEEE]'
+                      }`}
+                    >
+                      <MessageCircle className="w-5 h-5 mr-2" />
+                      Özel Tasarım İste
+                    </Button>
+                  </div>
+
+                  {/* Bilgi Kutusu */}
+                  <div className={`bg-gradient-to-r p-4 rounded-2xl text-center ${
+                    isDark 
+                      ? 'from-[#F87B1B]/20 to-[#CBD99B]/20 border border-[#F87B1B]/30' 
+                      : 'from-[#11224E]/10 to-[#CBD99B]/20 border border-[#11224E]/20'
+                  }`}>
+                    <p className={`text-sm font-medium ${
+                      isDark ? 'text-[#11224E]' : 'text-[#11224E]'
+                    }`}>
+                      💡 Logo'yu sürükleyerek hareket ettirebilirsiniz
+                    </p>
+                  </div>
+
+                </div>
               </div>
             </div>
           )}

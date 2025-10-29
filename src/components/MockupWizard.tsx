@@ -235,9 +235,7 @@ export default function MockupWizard() {
     window.open('https://wa.me/905555555555?text=Özel tasarım için iletişime geçmek istiyorum', '_blank');
   };
 
-  const finishWizard = () => {
-    setCurrentPhase("result");
-  };
+  // Removed unused finishWizard function
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${
